@@ -1,109 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'show_code.dart';
+import 'dart:convert';
+
+class PictureInfo{
+  final String date;
+  final String title;
+  final String url;
+  final String description;
+
+  PictureInfo({this.date, this.title, this.url, this.description});
+
+  factory PictureInfo.fromJson(Map<String, dynamic> json) {
+    return PictureInfo(
+      date: json['date'],
+      title: json['title'],
+      url: json['url'],
+      description: json['explanation'],
+    );
+  }
+}
+
 
 class TestHttp extends StatefulWidget {
   final String url;
 
-  TestHttp({String url}):url = url;
+
+
+  TestHttp({String url}) : url = url;
 
   @override
   State<StatefulWidget> createState() => TestHttpState();
-}// TestHttp
+} // TestHttp
 
 class TestHttpState extends State<TestHttp> {
-  final _formKey = GlobalKey<FormState>();
-
-  String _url, _body;
-  int _status;
+  String _url;
+  PictureInfo _pictureInfo;
 
   @override
   void initState() {
     _url = widget.url;
     super.initState();
-  }//initState
+  } //initState
 
   _sendRequestGet() {
-    if(_formKey.currentState.validate()) {
-      _formKey.currentState.save();//update form data
+    //update form data
+    http.get(_url).then((response) {
+      _pictureInfo = PictureInfo.fromJson(json.decode(response.body));
 
-      http.get(_url).then((response){
-        _status = response.statusCode;
-        _body = response.body;
+      setState(() {}); //reBuildWidget
+    }).catchError((error) {
+      _pictureInfo = PictureInfo(
+        date: '',
+        title: error.toString(),
+        url: '',
+        description: '',
+      );
 
-        setState(() {});//reBuildWidget
-      }).catchError((error){
-        _status = 0;
-        _body = error.toString();
-
-        setState(() {});//reBuildWidget
-      });
-    }
-  }//_sendRequestGet
-
-  _sendRequestPost() async {
-    if(_formKey.currentState.validate()) {
-      _formKey.currentState.save();//update form data
-
-      try {
-        var response = await http.post(_url);
-
-        _status = response.statusCode;
-        _body = response.body;
-      } catch (error) {
-        _status = 0;
-        _body = error.toString();
-      }
-      setState(() {});//reBuildWidget
-    }
-  }//_sendRequestPost
-
-  _sendRequestPostBodyHeaders() async {
-    if(_formKey.currentState.validate()) {
-      _formKey.currentState.save();//update form data
-
-      try {
-        var response = await http.post(_url,
-                      body: {'name':'test','num':'10'},
-                      headers: {'Accept':'application/json'}
-                      );
-
-        _status = response.statusCode;
-        _body = response.body;
-      } catch (error) {
-        _status = 0;
-        _body = error.toString();
-      }
-      setState(() {});//reBuildWidget
-    }
-  }//_sendRequestPost
-
+      setState(() {}); //reBuildWidget
+    });
+  } //_sendRequestGet
 
   Widget build(BuildContext context) {
-    return Form(key: _formKey, child: SingleChildScrollView(child: Column(
+    return Center(
+        child: SingleChildScrollView(
+            child: Column(
       children: <Widget>[
-        Container(
-            child: Text('API url', style: TextStyle(fontSize: 20.0,color: Colors.blue)),
-            padding: EdgeInsets.all(10.0)
-        ),
-        Container(
-            child: TextFormField(initialValue: _url, validator: (value){if (value.isEmpty) return 'API url isEmpty';}, onSaved: (value){_url = value;}, autovalidate: true),
-            padding: EdgeInsets.all(10.0)
-        ),
         SizedBox(height: 20.0),
-        RaisedButton(child: Text('Send request GET'), onPressed: _sendRequestGet),
-        RaisedButton(child: Text('Send request POST'), onPressed: _sendRequestPost),
-        RaisedButton(child: Text('Send request POST with Body and Headers'), onPressed: _sendRequestPostBodyHeaders),
+        RaisedButton(
+            child: Text('See picture of the day'), onPressed: _sendRequestGet),
         SizedBox(height: 20.0),
-        Text('Response status', style: TextStyle(fontSize: 20.0,color: Colors.blue)),
-        Text(_status == null ? '' :_status.toString()),
-        SizedBox(height: 20.0),
-        Text('Response body', style: TextStyle(fontSize: 20.0,color: Colors.blue)),
-        Text(_body == null ? '' : _body),
+        Text(_pictureInfo == null ? '' :_pictureInfo.date,
+            style: TextStyle(fontSize: 15, color: Colors.green)),
+        SizedBox(height: 10),
+        Text(_pictureInfo == null ? '' :_pictureInfo.title,
+            style: TextStyle(fontSize: 20.0, color: Colors.blue)),
+        SizedBox(height: 10),
+        Image.network(_pictureInfo == null ? '' :_pictureInfo.url),
+        SizedBox(height: 10),
+        Text(_pictureInfo == null ? '' :_pictureInfo.description),
       ],
     )));
-  }//build
-}//TestHttpState
+  } //build
+} //TestHttpState
 
 class MyApp extends StatelessWidget {
   @override
@@ -111,18 +90,20 @@ class MyApp extends StatelessWidget {
     return Scaffold(
         appBar: AppBar(
           title: Text('Test HTTP API'),
-          actions: <Widget>[IconButton(icon: Icon(Icons.code), tooltip: 'Code', onPressed: (){
-            Navigator.push(context, MaterialPageRoute(builder: (context) => CodeScreen()));
-          })],
+          actions: <Widget>[
+            IconButton(
+                icon: Icon(Icons.code),
+                tooltip: 'Code',
+                onPressed: () {
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (context) => CodeScreen()));
+                })
+          ],
         ),
-        body: TestHttp(url: 'https://json.flutter.su/echo')
-    );
+        body: TestHttp(
+            url: 'https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY'));
   }
 }
 
-void main() => runApp(
-    MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: MyApp()
-    )
-);
+void main() =>
+    runApp(MaterialApp(debugShowCheckedModeBanner: false, home: MyApp()));
